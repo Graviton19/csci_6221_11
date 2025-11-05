@@ -1,0 +1,78 @@
+require "kemal"
+require "kemal-session"
+require "db"
+require "pg"
+require "./db/setup"
+require "./models/user"
+
+# Session config
+Kemal::Session.config do |config|
+  config.secret = "aalekh_key_change_this"
+  config.cookie_name = "crystal_auth_session"
+end
+
+# Serve static assets from src/public (Kemal will look relative to working dir)
+Kemal.config do |config|
+  config.public_folder = "public"
+end
+
+# Login page (GET)
+get "/login" do |env|
+  render "src/views/login.ecr"
+end
+
+# Register page (GET)
+get "/register" do |env|
+  render "src/views/register.ecr"
+end
+
+# Login POST
+post "/login" do |env|
+  username = env.params.body["username"]?
+  password = env.params.body["password"]?
+
+  if username && password && User.authenticate(username, password)
+    # store username in session using kemal-session typed API
+    env.session.string("username", username)
+    env.redirect "/"
+  else
+    env.redirect "/login?msg=Invalid+credentials"
+  end
+end
+
+# Register POST
+post "/register" do |env|
+  username = env.params.body["username"]?
+  password = env.params.body["password"]?
+
+  begin
+    if username && password
+      User.create(username, password)
+      env.redirect "/login?msg=Account+created+successfully"
+    else
+      env.redirect "/register?msg=Missing+fields"
+    end
+  rescue e
+    env.redirect "/register?msg=Registration+failed"
+  end
+end
+
+# Dashboard (GET /)
+get "/" do |env|
+  # read username from session (may be nil)
+  username = env.session.string?("username")
+  if username
+     render "src/views/dashboard.ecr"
+  else
+    env.redirect "/login"
+  end
+end
+
+# Logout
+get "/logout" do |env|
+  env.session.destroy
+  env.redirect "/login?msg=Logged+out"
+end
+
+puts "🚀 Server running at http://localhost:3000"
+Kemal.run

@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register — Crystal Auth</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="container">
+<div class="brand header">
+<div style="display:flex;align-items:center;gap:12px">
+<div class="logo"></div>
+<div>
+<div style="font-weight:700">Crystal Auth</div>
+<div class="small">Create your account</div>
+</div>
+</div>
+<div class="nav">
+<a href="/login">Sign in</a>
+</div>
+</div>
+
+
+<div class="card center-card">
+<h1>Create account</h1>
+<form method="post" action="/register">
+<div class="form-group">
+<label for="username">Username</label>
+<input id="username" name="username" type="text" required>
+</div>
+<div class="form-group">
+<label for="password">Password</label>
+<input id="password" name="password" type="password" required>
+</div>
+<div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+<button class="btn primary" type="submit">Create account</button>
+<a class="small" href="/login">Already have an account?</a>
+</div>
+</form>
+<div class="footer">© Crystal Auth</div>
+</div>
+</div>
+</body>
+</html>

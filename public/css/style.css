@@ -1,0 +1,72 @@
+
+:root{
+--primary: #005CB9;
+--bg: #F5F7FA;
+--card: #FFFFFF;
+--text: #2E2E2E;
+--muted: #6B7280;
+}
+
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+margin:0;
+font-family: Inter, Roboto, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial;
+background:var(--bg);
+color:var(--text);
+-webkit-font-smoothing:antialiased;
+}
+.container{
+max-width:960px;
+margin:48px auto;
+padding:16px;
+}
+.header{
+display:flex;
+align-items:center;
+justify-content:space-between;
+margin-bottom:24px;
+}
+.brand{
+display:flex;align-items:center;gap:10px
+}
+.brand .logo{
+width:40px;height:40px;border-radius:8px;background:var(--primary);display:inline-block
+}
+.nav{display:flex;gap:12px;align-items:center}
+.nav a{color:var(--muted);text-decoration:none;padding:8px 12px;border-radius:6px}
+.nav a.primary{background:var(--primary);color:white}
+.card{
+background:var(--card);
+border-radius:12px;
+box-shadow:0 6px 20px rgba(16,24,40,0.08);
+padding:28px;
+}
+.center-card{
+max-width:420px;margin:40px auto;padding:28px;
+}
+h1{margin:0 0 12px;font-size:20px}
+.form-group{margin-bottom:12px}
+label{display:block;margin-bottom:6px;font-size:13px;color:var(--muted)}
+input[type=text],input[type=password],input[type=file],input[type=email]{
+width:100%;padding:10px 12px;border:1px solid #E6E9EE;border-radius:8px;font-size:14px
+}
+button.btn{display:inline-block;padding:10px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+button.primary{background:var(--primary);color:white}
+button.ghost{background:transparent;border:1px solid #E6E9EE;color:var(--text)}
+.small{font-size:13px;color:var(--muted)}
+.footer{margin-top:16px;text-align:center;color:var(--muted);font-size:13px}
+
+
+/* dashboard grid */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.card .title{font-weight:700;margin-bottom:8px}
+.welcome{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+
+
+/* responsive */
+@media(max-width:720px){
+.grid{grid-template-columns:1fr}
+.container{padding:12px}
+}

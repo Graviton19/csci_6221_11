@@ -1,0 +1,35 @@
+name: crystal_auth
+version: 0.1.0
+
+targets:
+  crystal_auth:
+    main: src/crystal_auth.cr
+
+dependencies:
+  kemal:
+    github: kemalcr/kemal
+
+  kemal-session:
+    github: kemalcr/kemal-session
+
+  db:
+    github: crystal-lang/crystal-db
+
+  pg:
+    github: will/crystal-pg
+# authors:
+#   - name <email@example.com>
+
+# description: |
+#   Short description of Crystal
+
+# dependencies:
+#   pg:
+#     github: will/crystal-pg
+#     version: "~> 0.5"
+
+# development_dependencies:
+#   webmock:
+#     github: manastech/webmock.cr
+
+# license: MIT

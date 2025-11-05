@@ -1,0 +1,4 @@
+lib/
+*.dwarf
+*.o
+.DS_Store
