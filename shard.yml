@@ -17,6 +17,9 @@ dependencies:
 
   pg:
     github: will/crystal-pg
+    
+  csv:
+    github: crystal-lang/crystal
 # authors:
 #   - name <email@example.com>
 

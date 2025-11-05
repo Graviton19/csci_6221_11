@@ -4,6 +4,7 @@ require "db"
 require "pg"
 require "./db/setup"
 require "./models/user"
+require "csv" # For CSV validation
 
 # Session config
 Kemal::Session.config do |config|
@@ -24,6 +25,12 @@ end
 # Register page (GET)
 get "/register" do |env|
   render "src/views/register.ecr"
+end
+
+
+# GET upload page
+get "/upload" do
+  render "src/views/upload.ecr"
 end
 
 # Login POST
@@ -67,6 +74,40 @@ get "/" do |env|
     env.redirect "/login"
   end
 end
+
+
+post "/upload" do |env|
+  file = env.params.files["dataset"]?
+
+  if file.nil?
+    next env.redirect "/upload?msg=No+file+selected"
+  end
+
+  # Read the uploaded file
+  csv_content = File.read(file.tempfile.path)
+  rows = CSV.parse(csv_content)
+
+  if rows.empty?
+    next env.redirect "/upload?msg=Empty+CSV+file"
+  end
+
+  total_rows = rows.size
+  total_columns = rows.first.size
+  missing_cells = rows.flatten.count { |v| v.strip.empty? }
+
+  missing_ratio = missing_cells / (total_rows * total_columns).to_f
+  score = ((1 - missing_ratio) * 100).round(2)
+
+  <<-HTML
+  <h1>Dataset Analysis Results ✅</h1>
+  <p><strong>Rows:</strong> #{total_rows}</p>
+  <p><strong>Columns:</strong> #{total_columns}</p>
+  <p><strong>Missing Values:</strong> #{missing_cells}</p>
+  <p><strong>Validation Score:</strong> #{score}%</p>
+  HTML
+end
+
+
 
 # Logout
 get "/logout" do |env|
