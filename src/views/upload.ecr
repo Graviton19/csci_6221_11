@@ -1,11 +1,45 @@
 <!DOCTYPE html>
 <html>
-<head><title>Upload Dataset</title></head>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Upload Dataset — Crystal Auth</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
 <body>
-  <h2>Upload CSV Dataset</h2>
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="dataset" accept=".csv" required>
-    <button type="submit">Analyze</button>
+<div class="container">
+
+<div class="header">
+  <div class="brand">
+    <div class="logo"></div>
+    <div>
+      <div style="font-weight:700">Crystal Auth</div>
+      <div class="small">Dataset Validation</div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <a href="/">Home</a>
+    <a href="/logout" class="primary">Logout</a>
+  </div>
+</div>
+
+<div class="card" style="max-width:500px;margin:40px auto;text-align:center">
+  <div class="title">Upload CSV Dataset</div>
+  <div class="small">We will analyze missing data and give a quality score</div>
+
+
+
+  <form action="/upload" method="post" enctype="multipart/form-data" style="margin-top:20px">
+    <input type="file" name="dataset" accept=".csv" required class="btn ghost" style="width:100%;padding:10px;margin-bottom:20px">
+    <button type="submit" class="btn primary">Analyze</button>
   </form>
+
+  <div style="margin-top:15px">
+    <a href="/" class="small">← Back to Dashboard</a>
+  </div>
+</div>
+
+</div>
 </body>
 </html>

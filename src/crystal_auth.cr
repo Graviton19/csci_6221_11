@@ -99,7 +99,7 @@ post "/upload" do |env|
   score = ((1 - missing_ratio) * 100).round(2)
 
   <<-HTML
-  <h1>Dataset Analysis Results ✅</h1>
+  <h1>Dataset Analysis Results</h1>
   <p><strong>Rows:</strong> #{total_rows}</p>
   <p><strong>Columns:</strong> #{total_columns}</p>
   <p><strong>Missing Values:</strong> #{missing_cells}</p>
