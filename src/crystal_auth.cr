@@ -5,6 +5,7 @@ require "pg"
 require "./db/setup"
 require "./models/user"
 require "csv" # For CSV validation
+require "digest/sha256"
 
 # Session config
 Kemal::Session.config do |config|
@@ -79,32 +80,88 @@ end
 post "/upload" do |env|
   file = env.params.files["dataset"]?
 
-  if file.nil?
-    next env.redirect "/upload?msg=No+file+selected"
+  unless file
+    env.redirect "/upload?msg=No+file+selected"
+    next
   end
 
-  # Read the uploaded file
-  csv_content = File.read(file.tempfile.path)
-  rows = CSV.parse(csv_content)
+  csv_path = file.tempfile.path
+  content = File.read(csv_path)
+  csv = CSV.new(content, headers: true)
 
-  if rows.empty?
-    next env.redirect "/upload?msg=Empty+CSV+file"
+  headers = csv.headers
+  column_count = headers.size
+
+  row_count = 0
+  missing_values = 0
+  sample_types = Hash(String, String).new
+
+  csv.each do |row|
+    row_count += 1
+
+    headers.each do |key|
+      val = (row[key]? || "").to_s
+
+      # Missing value check
+      if val.strip.empty?
+        missing_values += 1
+      end
+
+      # Infer type only once
+      unless sample_types.has_key?(key)
+        inferred =
+          if val =~ /^\d+$/
+            "Integer"
+          elsif val =~ /^\d+\.\d+$/
+            "Float"
+          else
+            "String"
+          end
+
+        sample_types[key] = inferred
+      end
+    end
   end
 
-  total_rows = rows.size
-  total_columns = rows.first.size
-  missing_cells = rows.flatten.count { |v| v.strip.empty? }
+  total_cells = row_count * column_count
+  missing_ratio = total_cells == 0 ? 0.0 : missing_values.to_f / total_cells
 
-  missing_ratio = missing_cells / (total_rows * total_columns).to_f
-  score = ((1 - missing_ratio) * 100).round(2)
+  # Score: 100 = perfect dataset, 0 = worse
+  score = ((1.0 - missing_ratio) * 100).round(2)
 
-  <<-HTML
-  <h1>Dataset Analysis Results</h1>
-  <p><strong>Rows:</strong> #{total_rows}</p>
-  <p><strong>Columns:</strong> #{total_columns}</p>
-  <p><strong>Missing Values:</strong> #{missing_cells}</p>
-  <p><strong>Validation Score:</strong> #{score}%</p>
+  metadata = String.build do |s|
+    s << "rows=#{row_count};"
+    s << "columns=#{column_count};"
+    s << "headers=#{headers.join(",")};"
+    s << "missing_values=#{missing_values};"
+    s << "missing_ratio=#{missing_ratio};"
+    s << "validation_score=#{score};"
+
+    sample_types.each do |col, type|
+      s << "#{col}:#{type};"
+    end
+  end
+
+  hash = Digest::SHA256.hexdigest(metadata)
+
+  puts 
+  puts metadata
+  puts 
+  puts hash
+
+  # TODO → send `hash` to blockchain
+
+  html = <<-HTML
+    <h1>Dataset Analysis Results</h1>
+    <p><strong>Rows:</strong> #{row_count}</p>
+    <p><strong>Columns:</strong> #{column_count}</p>
+    <p><strong>Missing Value Ratio:</strong> #{missing_ratio}</p>
+    <p><strong>Validation Score:</strong> #{score}%</p>
+    <p><strong>SHA256 Hash:</strong> #{hash}</p>
   HTML
+
+  env.response.content_type = "text/html"
+  env.response.print html
 end
 
 
