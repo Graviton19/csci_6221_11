@@ -115,5 +115,5 @@ get "/logout" do |env|
   env.redirect "/login?msg=Logged+out"
 end
 
-puts "🚀 Server running at http://localhost:3000"
+puts "Server running at http://localhost:3000"
 Kemal.run
