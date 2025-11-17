@@ -6,6 +6,9 @@ require "./db/setup"
 require "./models/user"
 require "csv" # For CSV validation
 require "digest/sha256"
+require "./blockchain"
+
+bc = Blockchain.new
 
 # Session config
 Kemal::Session.config do |config|
@@ -103,9 +106,7 @@ post "/upload" do |env|
       val = (row[key]? || "").to_s
 
       # Missing value check
-      if val.strip.empty?
-        missing_values += 1
-      end
+      missing_values += 1 if val.strip.empty?
 
       # Infer type only once
       unless sample_types.has_key?(key)
@@ -117,7 +118,6 @@ post "/upload" do |env|
           else
             "String"
           end
-
         sample_types[key] = inferred
       end
     end
@@ -142,14 +142,12 @@ post "/upload" do |env|
     end
   end
 
+  # Compute hash of metadata
   hash = Digest::SHA256.hexdigest(metadata)
 
-  puts 
-  puts metadata
-  puts 
-  puts hash
-
-  # TODO → send `hash` to blockchain
+  # Send hash to blockchain
+  owner_username = env.session.string?("username").to_s
+  bc.add_dataset(hash, owner_username)
 
   html = <<-HTML
     <h1>Dataset Analysis Results</h1>
@@ -163,8 +161,6 @@ post "/upload" do |env|
   env.response.content_type = "text/html"
   env.response.print html
 end
-
-
 
 # Logout
 get "/logout" do |env|
