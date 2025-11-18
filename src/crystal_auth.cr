@@ -4,9 +4,10 @@ require "db"
 require "pg"
 require "./db/setup"
 require "./models/user"
-require "csv" # For CSV validation
+require "csv"
 require "digest/sha256"
 require "./blockchain"
+require "./synthetic_detector"
 
 bc = Blockchain.new
 
@@ -99,8 +100,14 @@ post "/upload" do |env|
   missing_values = 0
   sample_types = Hash(String, String).new
 
+  # ----- Collect numeric rows for SyntheticDetector -----
+  numeric_rows = [] of Hash(String, Float64)
+
   csv.each do |row|
     row_count += 1
+
+    # build numeric-only row
+    numeric_entry = {} of String => Float64
 
     headers.each do |key|
       val = (row[key]? || "").to_s
@@ -120,15 +127,24 @@ post "/upload" do |env|
           end
         sample_types[key] = inferred
       end
+
+      # Add numeric values for synthetic detection
+      if val =~ /^\d+(\.\d+)?$/
+        numeric_entry[key] = val.to_f64
+      end
     end
+
+    # Only add if row had at least one numeric column
+    numeric_rows << numeric_entry unless numeric_entry.empty?
   end
 
   total_cells = row_count * column_count
   missing_ratio = total_cells == 0 ? 0.0 : missing_values.to_f / total_cells
 
-  # Score: 100 = perfect dataset, 0 = worse
+  # Score calculation
   score = ((1.0 - missing_ratio) * 100).round(2)
 
+  # Build metadata string
   metadata = String.build do |s|
     s << "rows=#{row_count};"
     s << "columns=#{column_count};"
@@ -142,13 +158,28 @@ post "/upload" do |env|
     end
   end
 
-  # Compute hash of metadata
+  # Compute SHA256 hash
   hash = Digest::SHA256.hexdigest(metadata)
 
-  # Send hash to blockchain
+  # Store on blockchain
   owner_username = env.session.string?("username").to_s
   bc.add_dataset(hash, owner_username)
 
+  # ------------------------------------
+  # 🔍 Synthetic Data Detection (General)
+  # ------------------------------------
+  synth_score = 0.0
+  synth_issues = [] of String
+
+  begin
+    synth_score, synth_issues = SyntheticDetector.analyze(numeric_rows)
+  rescue e
+    synth_issues << "Synthetic detection failed: #{e.message}"
+  end
+
+  # -------------------------
+  # HTML Response
+  # -------------------------
   html = <<-HTML
     <h1>Dataset Analysis Results</h1>
     <p><strong>Rows:</strong> #{row_count}</p>
@@ -156,7 +187,20 @@ post "/upload" do |env|
     <p><strong>Missing Value Ratio:</strong> #{missing_ratio}</p>
     <p><strong>Validation Score:</strong> #{score}%</p>
     <p><strong>SHA256 Hash:</strong> #{hash}</p>
+
+    <h2>Synthetic Data Detection (General)</h2>
+    <p><strong>Synthetic Likelihood:</strong> #{synth_score}%</p>
   HTML
+
+  if synth_issues.empty?
+    html += "<p style='color:green'>No anomalies detected.</p>"
+  else
+    html += "<ul>"
+    synth_issues.each do |issue|
+      html += "<li>#{issue}</li>"
+    end
+    html += "</ul>"
+  end
 
   env.response.content_type = "text/html"
   env.response.print html
