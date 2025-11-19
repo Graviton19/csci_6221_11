@@ -1,7 +1,10 @@
 require "pg"
 require "db"
+require "dotenv"
 
-DB_URL = "postgres://postgres:aalekh@localhost:5432/crystal_auth"
+Dotenv.load
+
+DB_URL = ENV["DB_URL"]
 
 DB.open DB_URL do |db|
   db.exec <<-SQL

@@ -6,6 +6,9 @@ targets:
     main: src/crystal_auth.cr
 
 dependencies:
+  dotenv:
+    github: gdotdesign/cr-dotenv
+
   kemal:
     github: kemalcr/kemal
 

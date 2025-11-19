@@ -3,3 +3,4 @@ lib/
 *.o
 .DS_Store
 blockchain.json
+.env

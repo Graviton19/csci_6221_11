@@ -8,13 +8,15 @@ require "csv"
 require "digest/sha256"
 require "./blockchain"
 require "./synthetic_detector"
+require "dotenv"
+Dotenv.load
 
 bc = Blockchain.new
 
 # Session config
 Kemal::Session.config do |config|
-  config.secret = "aalekh_key_change_this"
-  config.cookie_name = "crystal_auth_session"
+  config.secret = ENV["SESSION_SECRET"]
+  config.cookie_name = ENV["SESSION_KEY"]
 end
 
 # Serve static assets from src/public (Kemal will look relative to working dir)
@@ -29,14 +31,12 @@ end
 
 # Register page (GET)
 get "/register" do |env|
+  error   = env.params.query["error"]?
+  success = env.params.query["success"]?
   render "src/views/register.ecr"
 end
 
 
-# GET upload page
-get "/upload" do
-  render "src/views/upload.ecr"
-end
 
 # Login POST
 post "/login" do |env|
@@ -52,22 +52,27 @@ post "/login" do |env|
   end
 end
 
-# Register POST
 post "/register" do |env|
   username = env.params.body["username"]?
   password = env.params.body["password"]?
+  confirm  = env.params.body["confirm_password"]?
 
-  begin
-    if username && password
-      User.create(username, password)
-      env.redirect "/login?msg=Account+created+successfully"
-    else
-      env.redirect "/register?msg=Missing+fields"
-    end
-  rescue e
-    env.redirect "/register?msg=Registration+failed"
+  if username.nil? || password.nil? || confirm.nil?
+    env.redirect "/register?error=Missing+fields"
+    next
   end
+
+  if password != confirm
+    env.redirect "/register?error=Passwords+do+not+match"
+    next
+  end
+
+  # Successful registration
+  User.create(username, password)
+  env.redirect "/login"
 end
+
+
 
 # Dashboard (GET /)
 get "/" do |env|
@@ -75,6 +80,15 @@ get "/" do |env|
   username = env.session.string?("username")
   if username
      render "src/views/dashboard.ecr"
+  else
+    env.redirect "/login"
+  end
+end
+
+get "/upload" do |env|
+  username = env.session.string?("username")
+  if username
+     render "src/views/upload.ecr"
   else
     env.redirect "/login"
   end
@@ -99,23 +113,16 @@ post "/upload" do |env|
   row_count = 0
   missing_values = 0
   sample_types = Hash(String, String).new
-
-  # ----- Collect numeric rows for SyntheticDetector -----
   numeric_rows = [] of Hash(String, Float64)
 
   csv.each do |row|
     row_count += 1
-
-    # build numeric-only row
     numeric_entry = {} of String => Float64
 
     headers.each do |key|
       val = (row[key]? || "").to_s
-
-      # Missing value check
       missing_values += 1 if val.strip.empty?
 
-      # Infer type only once
       unless sample_types.has_key?(key)
         inferred =
           if val =~ /^\d+$/
@@ -128,23 +135,18 @@ post "/upload" do |env|
         sample_types[key] = inferred
       end
 
-      # Add numeric values for synthetic detection
       if val =~ /^\d+(\.\d+)?$/
         numeric_entry[key] = val.to_f64
       end
     end
 
-    # Only add if row had at least one numeric column
     numeric_rows << numeric_entry unless numeric_entry.empty?
   end
 
   total_cells = row_count * column_count
   missing_ratio = total_cells == 0 ? 0.0 : missing_values.to_f / total_cells
-
-  # Score calculation
   score = ((1.0 - missing_ratio) * 100).round(2)
 
-  # Build metadata string
   metadata = String.build do |s|
     s << "rows=#{row_count};"
     s << "columns=#{column_count};"
@@ -152,22 +154,11 @@ post "/upload" do |env|
     s << "missing_values=#{missing_values};"
     s << "missing_ratio=#{missing_ratio};"
     s << "validation_score=#{score};"
-
     sample_types.each do |col, type|
       s << "#{col}:#{type};"
     end
   end
 
-  # Compute SHA256 hash
-  hash = Digest::SHA256.hexdigest(metadata)
-
-  # Store on blockchain
-  owner_username = env.session.string?("username").to_s
-  bc.add_dataset(hash, owner_username)
-
-  # ------------------------------------
-  # 🔍 Synthetic Data Detection (General)
-  # ------------------------------------
   synth_score = 0.0
   synth_issues = [] of String
 
@@ -177,29 +168,67 @@ post "/upload" do |env|
     synth_issues << "Synthetic detection failed: #{e.message}"
   end
 
-  # -------------------------
-  # HTML Response
-  # -------------------------
-  html = <<-HTML
-    <h1>Dataset Analysis Results</h1>
-    <p><strong>Rows:</strong> #{row_count}</p>
-    <p><strong>Columns:</strong> #{column_count}</p>
-    <p><strong>Missing Value Ratio:</strong> #{missing_ratio}</p>
-    <p><strong>Validation Score:</strong> #{score}%</p>
-    <p><strong>SHA256 Hash:</strong> #{hash}</p>
+  # Blockchain handling
+  hash_value = ""
+  saved_to_blockchain = false
+  dataset_message = ""
+  owner_username = env.session.string?("username").to_s
 
-    <h2>Synthetic Data Detection (General)</h2>
-    <p><strong>Synthetic Likelihood:</strong> #{synth_score}%</p>
-  HTML
+  if synth_score < 75.0
+    hash_value = Digest::SHA256.hexdigest(metadata)
 
-  if synth_issues.empty?
-    html += "<p style='color:green'>No anomalies detected.</p>"
-  else
-    html += "<ul>"
-    synth_issues.each do |issue|
-      html += "<li>#{issue}</li>"
+    # Use the new add_dataset method that returns a tuple
+    block, newly_added = bc.add_dataset(hash_value, owner_username)
+
+    if newly_added
+      saved_to_blockchain = true
+      dataset_message = "Dataset successfully saved to blockchain."
+    else
+      dataset_message = "Dataset already in blockchain. Owner: #{block.owner}"
     end
-    html += "</ul>"
+  else
+    hash_value = "Not generated — dataset too synthetic (>75%)"
+    dataset_message = "Dataset too synthetic, not saved."
+  end
+
+  # -------------------------------
+  # Build HTML inline
+  # -------------------------------
+  html = String.build do |s|
+    s << "<!DOCTYPE html><html><head><title>Dataset Analysis Results</title>"
+    s << "<style>body{font-family:Arial;margin:25px;}.good{color:green;}.bad{color:red;font-weight:bold;}</style></head><body>"
+
+    s << "<h1>Dataset Analysis Results</h1>"
+    s << "<p><strong>Rows:</strong> #{row_count}</p>"
+    s << "<p><strong>Columns:</strong> #{column_count}</p>"
+    s << "<p><strong>Missing Ratio:</strong> #{missing_ratio}</p>"
+    s << "<p><strong>Validation Score:</strong> #{score}%</p>"
+
+    s << "<h2>Synthetic Data Check</h2>"
+    s << "<p><strong>Synthetic Likelihood:</strong> #{synth_score}%</p>"
+
+    if synth_score > 75.0
+      s << "<p class='bad'>The dataset appears too synthetic and cannot be added to the blockchain.</p>"
+    else
+      s << "<p class='good'>Dataset looks valid for blockchain storage.</p>"
+    end
+
+    s << "<h2>Blockchain Result</h2>"
+    s << "<p><strong>Hash:</strong> #{hash_value}</p>"
+    s << "<p class='#{saved_to_blockchain ? "good" : "bad"}'>#{dataset_message}</p>"
+
+    s << "<h2>Data Anomalies</h2>"
+    if synth_issues.empty?
+      s << "<p class='good'>No anomalies detected.</p>"
+    else
+      s << "<ul>"
+      synth_issues.each do |issue|
+        s << "<li>#{issue}</li>"
+      end
+      s << "</ul>"
+    end
+
+    s << "</body></html>"
   end
 
   env.response.content_type = "text/html"

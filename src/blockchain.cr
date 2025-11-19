@@ -18,12 +18,13 @@ class Blockchain
   end
 
   # Add dataset hash to blockchain
-  def add_dataset(dataset_hash : String, owner : String)
+  # Returns a tuple: the block and a boolean indicating if it was newly added
+  def add_dataset(dataset_hash : String, owner : String) : Tuple(Block, Bool)
     # Check if dataset already exists
     existing = @chain.find { |b| b.dataset_hash == dataset_hash }
     if existing
-      puts "Dataset already exists. Owner: #{existing.owner}"
-      return existing
+      # Already exists: return existing block + false
+      return {existing, false}
     end
 
     new_block = Block.new(
@@ -35,8 +36,9 @@ class Blockchain
 
     @chain << new_block
     save_chain
-    puts "Dataset stored with owner #{owner}"
-    new_block
+
+    # Newly added: return new block + true
+    {new_block, true}
   end
 
   def exists?(dataset_hash : String)
