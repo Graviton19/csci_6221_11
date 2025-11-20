@@ -13,23 +13,21 @@ Dotenv.load
 
 bc = Blockchain.new
 
-# Session config
 Kemal::Session.config do |config|
   config.secret = ENV["SESSION_SECRET"]
   config.cookie_name = ENV["SESSION_KEY"]
 end
 
-# Serve static assets from src/public (Kemal will look relative to working dir)
 Kemal.config do |config|
   config.public_folder = "public"
 end
 
-# Login page (GET)
+
 get "/login" do |env|
   render "src/views/login.ecr"
 end
 
-# Register page (GET)
+
 get "/register" do |env|
   error   = env.params.query["error"]?
   success = env.params.query["success"]?
@@ -37,14 +35,11 @@ get "/register" do |env|
 end
 
 
-
-# Login POST
 post "/login" do |env|
   username = env.params.body["username"]?
   password = env.params.body["password"]?
 
   if username && password && User.authenticate(username, password)
-    # store username in session using kemal-session typed API
     env.session.string("username", username)
     env.redirect "/"
   else
@@ -67,16 +62,13 @@ post "/register" do |env|
     next
   end
 
-  # Successful registration
   User.create(username, password)
   env.redirect "/login"
 end
 
 
 
-# Dashboard (GET /)
 get "/" do |env|
-  # read username from session (may be nil)
   username = env.session.string?("username")
   if username
      render "src/views/dashboard.ecr"
@@ -168,7 +160,6 @@ post "/upload" do |env|
     synth_issues << "Synthetic detection failed: #{e.message}"
   end
 
-  # Blockchain handling
   hash_value = ""
   saved_to_blockchain = false
   dataset_message = ""
@@ -177,7 +168,6 @@ post "/upload" do |env|
   if synth_score < 75.0
     hash_value = Digest::SHA256.hexdigest(metadata)
 
-    # Use the new add_dataset method that returns a tuple
     block, newly_added = bc.add_dataset(hash_value, owner_username)
 
     if newly_added
@@ -187,13 +177,10 @@ post "/upload" do |env|
       dataset_message = "Dataset already in blockchain. Owner: #{block.owner}"
     end
   else
-    hash_value = "Not generated — dataset too synthetic (>75%)"
+    hash_value = "Not generated dataset too synthetic (>75%)"
     dataset_message = "Dataset too synthetic, not saved."
   end
 
-  # -------------------------------
-  # Build HTML inline
-  # -------------------------------
   html = String.build do |s|
     s << "<!DOCTYPE html><html><head><title>Dataset Analysis Results</title>"
     s << "<style>body{font-family:Arial;margin:25px;}.good{color:green;}.bad{color:red;font-weight:bold;}</style></head><body>"
@@ -235,7 +222,6 @@ post "/upload" do |env|
   env.response.print html
 end
 
-# Logout
 get "/logout" do |env|
   env.session.destroy
   env.redirect "/login?msg=Logged+out"

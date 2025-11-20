@@ -37,7 +37,7 @@ class Block
   def self.from_json(json_str : String)
     data = JSON.parse(json_str)
     Block.new(
-    data["index"].as_i,          # .as_i works
+    data["index"].as_i,        
     data["dataset_hash"].as_s,
     data["owner"].as_s,
     data["previous_hash"].as_s

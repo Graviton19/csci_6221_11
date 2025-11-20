@@ -3,7 +3,6 @@ require "db"
 require "crypto/bcrypt"
 
 class User
-  # Create a new user
   def self.create(username : String, password : String)
     hashed = Crypto::Bcrypt::Password.create(password)
     DB.open(DB_URL) do |db|
@@ -11,7 +10,6 @@ class User
     end
   end
 
-  # Authenticate user
   def self.authenticate(username : String, password : String)
     DB.open(DB_URL) do |db|
       result = db.query_one?(
@@ -24,14 +22,13 @@ class User
     end
   end
 
-  # Check if username already exists
   def self.exists?(username : String) : Bool
     DB.open(DB_URL) do |db|
       result = db.query_one?(
         "SELECT 1 FROM users WHERE username = $1 LIMIT 1", username,
         as: {Int32}
       )
-      !!result   # true if record exists, false otherwise
+      !!result
     end
   end
 end

@@ -59,13 +59,11 @@ button.ghost{background:transparent;border:1px solid #E6E9EE;color:var(--text)}
 .footer{margin-top:16px;text-align:center;color:var(--muted);font-size:13px}
 
 
-/* dashboard grid */
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
 .card .title{font-weight:700;margin-bottom:8px}
 .welcome{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
 
 
-/* responsive */
 @media(max-width:720px){
 .grid{grid-template-columns:1fr}
 .container{padding:12px}

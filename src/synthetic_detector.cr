@@ -18,9 +18,6 @@ module SyntheticDetector
     end
   end
 
-  # ------------------------------------------------------
-  # Compute statistics
-  # ------------------------------------------------------
   def self.stats(values : Array(Float64)) : Stats
     return Stats.new(0, 0, 0, 0, 0, 0) if values.empty?
 
@@ -37,16 +34,12 @@ module SyntheticDetector
     Stats.new(min, max, mean, std, unique_ratio, range_ratio)
   end
 
-  # ------------------------------------------------------
-  # MAIN SYNTHETIC ANALYZER
-  # ------------------------------------------------------
   def self.analyze(rows : Array(Hash(String, Float64)))
     return {100.0, ["Empty dataset"]} if rows.empty?
 
     # Extract all columns safely
     columns = rows.flat_map(&.keys).uniq
 
-    # Build per-column arrays safely (fix for missing keys)
     column_data = Hash(String, Array(Float64)).new
     columns.each { |col| column_data[col] = [] of Float64 }
 
@@ -61,15 +54,11 @@ module SyntheticDetector
     issues = [] of String
     synthetic_score = 0.0
 
-    # -------- Compute stats for each column ----------
     stats_for = {} of String => Stats
     columns.each do |col|
       stats_for[col] = stats(column_data[col])
     end
 
-    # ----------------------------------------------------
-    # 1. Range + Variance Checks
-    # ----------------------------------------------------
     columns.each do |col|
       s = stats_for[col]
 
@@ -84,9 +73,6 @@ module SyntheticDetector
       end
     end
 
-    # ----------------------------------------------------
-    # 2. Uniqueness Checks
-    # ----------------------------------------------------
     columns.each do |col|
       s = stats_for[col]
 
@@ -101,9 +87,6 @@ module SyntheticDetector
       end
     end
 
-    # ----------------------------------------------------
-    # 3. Correlation Checks
-    # ----------------------------------------------------
     corr_values = [] of Float64
 
     columns.combinations(2).each do |(a, b)|
@@ -123,9 +106,6 @@ module SyntheticDetector
       end
     end
 
-    # ----------------------------------------------------
-    # 4. Duplicate Row Detection
-    # ----------------------------------------------------
     unique_rows = rows.uniq.size
     dupe_ratio = (rows.size - unique_rows).to_f / rows.size
 
@@ -134,12 +114,8 @@ module SyntheticDetector
       synthetic_score += 20
     end
 
-    # ----------------------------------------------------
-    # 5. Stronger synthetic scoring
-    # ----------------------------------------------------
     base = synthetic_score
 
-    # Avg correlation score
     if !corr_values.empty?
       avg_corr = corr_values.sum / corr_values.size
 
@@ -147,7 +123,6 @@ module SyntheticDetector
       base += 10 if avg_corr < 0.15
     end
 
-    # Random/uniform patterns
     columns.each do |col|
       s = stats_for[col]
 
@@ -160,7 +135,6 @@ module SyntheticDetector
       end
     end
 
-    # Based on number of issues
     base += 15 if issues.size >= 4
     base += 5 if issues.size >= 2
 
@@ -169,9 +143,6 @@ module SyntheticDetector
     {final_score, issues}
   end
 
-  # ------------------------------------------------------
-  # Pearson correlation
-  # ------------------------------------------------------
   def self.pearson(a : Array(Float64), b : Array(Float64))
     return 0.0 if a.size != b.size || a.empty?
 
