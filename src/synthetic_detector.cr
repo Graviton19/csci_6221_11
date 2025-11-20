@@ -37,7 +37,6 @@ module SyntheticDetector
   def self.analyze(rows : Array(Hash(String, Float64)))
     return {100.0, ["Empty dataset"]} if rows.empty?
 
-    # Extract all columns safely
     columns = rows.flat_map(&.keys).uniq
 
     column_data = Hash(String, Array(Float64)).new

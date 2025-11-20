@@ -61,6 +61,11 @@ post "/register" do |env|
     env.redirect "/register?error=Passwords+do+not+match"
     next
   end
+  
+  if User.exists?(username)
+    env.redirect "/register?error=Username+already+taken"
+    next
+  end
 
   User.create(username, password)
   env.redirect "/login"
